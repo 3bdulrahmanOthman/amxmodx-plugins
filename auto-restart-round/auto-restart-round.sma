@@ -1,116 +1,83 @@
 #include <amxmodx>
-#include <hamsandwich>
-#include <cstrike>
-#include <amxmisc>
+#include <cromchat>
 
+#if !defined MAX_FMT_LENGTH
+    const MAX_FMT_LENGTH = 192
+#endif
 
-new const g_szModelFile[ ] = "CustomModels.ini";
+const TASK_RESTART = 616641;
 
-enum _:ModelData
-{ 
-	Model_Name[ 64 ],
-	Model_Flag[ 32 ],
-	CsTeams:Model_Team
+enum _:TotalCvar
+{
+    Restart_Round,
+    Restart_Time,
+    Restart_Sound,
+    Restart_Message,
+    Restart_HudMessage,
+    Restart_HudColor
 }
 
-new Array:g_aModels, eModel[ ModelData ]
+new g_iGameRounds, g_iCountdown, g_iCvars[ TotalCvar ]
 
 public plugin_init( ) 
 {
-	register_plugin( "Custom Models", "1.0.2", "Supremache" );
-	RegisterHam( Ham_Spawn, "player", "CBasePlayer_Spawn", 1 )
+    register_plugin( "Auto restart round", "1.0.0", "Supremache" )
     
-	if( ArraySize( g_aModels ) )
-	{
-		server_print( "[Custom Models] Loaded %d models", ArraySize( g_aModels ) )
-	}
+    CC_SetPrefix( "^4[AutoRestart]" )
+    
+    register_event( "HLTV", "OnRoundStart", "a", "1=0", "2=0" ); 
+    
+    g_iCvars[ Restart_Round ] = register_cvar( "amx_restartround", "30" )
+    g_iCvars[ Restart_Time ] = register_cvar( "amx_restart_time", "10" )
+    g_iCvars[ Restart_Sound ] = register_cvar( "amx_restart_sound", "1" )
+    g_iCvars[ Restart_Message ] = register_cvar("amx_restart_message", "30 ROUNDS ENDED! Restarting..." )
+    g_iCvars[ Restart_HudMessage ] = register_cvar( "amx_restart_hudmessage", "%seconds% seconds until restart!" )
+    g_iCvars[ Restart_HudColor ] = register_cvar( "amx_restart_hudcolor", "0 255 0" )
 }
 
-public plugin_precache() 
+public OnRoundStart( )
 {
-	g_aModels = ArrayCreate( ModelData );
-	ReadFile( );
-}
-    
-public CBasePlayer_Spawn( id )
-{
-	if( is_user_alive( id ) )
-	{
-		for( new CsTeams:iTeam = cs_get_user_team( id ), i; i < ArraySize( g_aModels ); i++ )
-		{
-			ArrayGetArray( g_aModels, i, eModel )
-			
-			if( ( !eModel[ Model_Team ] || iTeam == eModel[ Model_Team ] ) && has_all_flags( id , eModel[ Model_Flag ] ) )
-			{
-				cs_set_user_model( id, eModel[ Model_Name ] )
-				break;
-			}
-			else cs_reset_user_model( id );
-		}
-	}
+    if( ++g_iGameRounds == get_pcvar_num( g_iCvars[ Restart_Round ] ) )
+    {
+        if( !task_exists( TASK_RESTART ) )
+        {
+            set_task( 1.0, "OnTaskCountDown", TASK_RESTART, .flags = "a" , .repeat = ( g_iCountdown = get_pcvar_num( g_iCvars[ Restart_Time ] ) - 1 ) )
+        }
+    }
 }
 
-ReadFile( )
+public OnTaskCountDown( )
 {
-	new g_szFile[ 128 ], g_szConfigs[ 64 ];
-	get_configsdir( g_szConfigs, charsmax( g_szConfigs ) )
-	formatex( g_szFile, charsmax( g_szFile ), "%s/%s", g_szConfigs, g_szModelFile )
+    new szMessage[ MAX_FMT_LENGTH ], szColor[ 12 ], szRed[ 4 ], szGreen[ 4 ], szBlue[ 4 ], szRounds[ 4 ], szCountdown[ 4 ];
+    get_pcvar_string( g_iCvars[ Restart_HudMessage ], szMessage, charsmax( szMessage ) )
+    get_pcvar_string( g_iCvars[ Restart_HudColor ], szColor, charsmax( szColor ) )
+    parse( szColor, szRed, charsmax( szRed ), szGreen, charsmax( szGreen ), szBlue, charsmax( szBlue ) )
+    new R = clamp( str_to_num( szRed ), -1, 255 )
+    new G = clamp( str_to_num( szGreen ), -1, 255 )
+    new B = clamp( str_to_num( szBlue ), -1, 255 )
     
-	new iFile = fopen( g_szFile, "rt" );
+    g_iCountdown--
     
-	if( iFile )
-	{
-		new szData[ 512 ], szModel[ 64 ], szTeam[ 32 ];
-        
-		while( fgets( iFile, szData, charsmax( szData ) ) )
-		{    
-			trim( szData );
-            
-			switch( szData[ 0 ] )
-			{
-				case EOS, ';',  '#', '/': continue;
-
-				default:
-				{
-					eModel[ Model_Flag ][ 0 ] = EOS;
-					szTeam[ 0 ] = EOS;
-                    
-					parse ( szData, szModel, charsmax( szModel ), eModel[ Model_Flag ], charsmax( eModel[ Model_Flag ] ), szTeam, charsmax( szTeam ) )
-                    
-					trim( szModel ); trim( szTeam ); trim( eModel[ Model_Flag ] );
-
-					precache_player_model( szModel )
-					copy( eModel[ Model_Name ], charsmax( eModel[ Model_Name ] ), szModel );
-					
-					eModel[ Model_Team ] = CsTeams:clamp( str_to_num( szTeam ), _:CS_TEAM_UNASSIGNED, _:CS_TEAM_SPECTATOR );
-					
-					ArrayPushArray( g_aModels, eModel );
-				}
-			}
-		}
-		fclose( iFile );
-	}
-	else log_amx( "ERROR: ^"%s^" not found!", g_szFile )
-} 
-
-//Credits to OciXCrom
-precache_player_model(const szModel[], &id = 0)
-{
-	new model[128]
-	formatex(model, charsmax(model), "models/player/%s/%sT.mdl", szModel, szModel)
-
-	if(file_exists(model))
-	{
-		id = precache_generic(model)
-	}
-
-	static const extension[] = "T.mdl"
-	#pragma unused extension
-	
-	copy(model[strlen(model) - charsmax(extension)], charsmax(model), ".mdl")
+    if( get_pcvar_num( g_iCvars[ Restart_Sound ] ) )
+    {
+        new szSoundNum[ 16 ]
+        num_to_word( g_iCountdown, szSoundNum, charsmax( szSoundNum ) )
+        client_cmd(0, "spk ^"vox/%s^"", szSoundNum )
+    }
     
-	return precache_generic(model)
+    num_to_str( g_iGameRounds, szRounds, charsmax( szRounds ) )
+    num_to_str( g_iCountdown, szCountdown, charsmax( szCountdown ) )
+    replace_all( szMessage, charsmax( szMessage ), "%round%", szRounds )
+    replace_all( szMessage, charsmax( szMessage ), "%seconds%", szCountdown )
+    replace_all( szMessage, charsmax( szMessage ), "/n", "^n" )
+    
+    set_hudmessage( R, G, B, -1.0, 0.28, 2, 0.02, 1.0, 0.01, 0.1, 10 );
+    show_hudmessage( 0, szMessage );
+    
+    if( !g_iCountdown )
+    {
+        server_cmd("sv_restart 1")
+        get_pcvar_string( g_iCvars[ Restart_Message ], szMessage, charsmax( szMessage ) )
+        CC_SendMessage( 0, szMessage )
+    }
 }
-/* AMXX-Studio Notes - DO NOT MODIFY BELOW HERE
-*{\\ rtf1\\ ansi\\ deff0{\\ fonttbl{\\ f0\\ fnil\\ fcharset0 Tahoma;}}\n\\ viewkind4\\ uc1\\ pard\\ lang3073\\ f0\\ fs16 \n\\ par }
-*/
