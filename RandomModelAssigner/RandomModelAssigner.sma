@@ -12,6 +12,8 @@ new Array:g_aTotalModels, Array:g_aModelFlags;
 public plugin_init( ) 
 {
 	register_plugin("BB: RandomModelAssigner", "1.0.2", "Supremache");
+	register_cvar("RandomModelAssigner", PLUGIN_VERSION, FCVAR_SERVER | FCVAR_SPONLY | FCVAR_UNLOGGED );
+	
 	RegisterHam(Ham_Spawn, "player", "CBasePlayer_Spawn", 1);
     
 	if(ArraySize(g_aModelFlags))
