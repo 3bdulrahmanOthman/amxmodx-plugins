@@ -21,7 +21,8 @@ RandomModelAssigner is a versatile AMXX plugin designed for Counter-Strike 1.6. 
 1. **Download the Plugin**:
    - Clone or download the repository from GitHub:
      ```bash
-     git clone https://github.com/yourusername/RandomModelAssigner.git
+     git clone https://github.com/Supremache/amxmodx-plugins.git
+     cd RandomModelAssigner
      ```
 
 2. **Compile the Plugin**:
