@@ -1,7 +1,3 @@
-Here's a professional GitHub README for your AMX Mod X plugin:
-
----
-
 # Authorization Plugin for AMX Mod X
 
 ## Overview
@@ -119,7 +115,3 @@ Contributions are welcome! Feel free to submit issues or pull requests to enhanc
 
 ## License
 This plugin is licensed under the MIT License. See the `LICENSE` file for details.
-
----
-
-Let me know if you'd like to make any changes or additions!
