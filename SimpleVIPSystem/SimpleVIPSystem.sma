@@ -29,6 +29,9 @@ enum ( <<= 1 ) {
 
 enum eCvars {
 	ChatPrefix[32],
+	bool:PrivilageEnable,
+	PrivilageHealth,
+	PrivilageArmor,
 	bool:MedicEnable,
 	Float:MedicCooldown,
 	MedicAmount,
@@ -41,7 +44,7 @@ enum eCvars {
 	bool:OnlineCheckEnable,
 	bool:RewardsEnable,
 	ExtraMoney,
-	bool:ScoreBoard,
+	bool:ScoreBoardEnable,
 	bool:InfoMenuEnable
 }
 
@@ -54,6 +57,10 @@ public plugin_init() {
 	register_plugin("VIP System", "1.0", "Supremache");
 	
 	bind_pcvar_string(create_cvar("vip_chat_prefix", "[VIP System]", .description = "VIP chat prefix"), g_pCvar[ChatPrefix], charsmax(g_pCvar[ChatPrefix]));
+	
+	bind_pcvar_num(create_cvar("vip_privilage_enable", "1", .description = "Enable Privilage feature"), g_pCvar[PrivilageEnable]);
+	bind_pcvar_num(create_cvar("vip_privilage_hp", "50", .description = "Amount of privilage health"), g_pCvar[PrivilageHealth]);
+	bind_pcvar_num(create_cvar("vip_privilage_armor", "50", .description = "Amount of privilage armor"), g_pCvar[PrivilageArmor]);
 	
 	bind_pcvar_num(create_cvar("vip_medic_enable", "1", .description = "Enable Medic feature"), g_pCvar[MedicEnable]);
 	bind_pcvar_float(create_cvar("vip_medic_cooldown", "30.0", .description = "Medic cooldown in seconds"), g_pCvar[MedicCooldown]);
@@ -72,7 +79,7 @@ public plugin_init() {
 	bind_pcvar_num(create_cvar("vip_rewards_enable", "1", .description = "Enable Rewards System"), g_pCvar[RewardsEnable]);
 	bind_pcvar_num(create_cvar("vip_rewards_money", "300", .description = "Extra money per kill"), g_pCvar[ExtraMoney]);
 	
-	bind_pcvar_num(create_cvar("vip_scoreboard_enable", "1", .description = "Enable Score Board"), g_pCvar[ScoreBoard]);
+	bind_pcvar_num(create_cvar("vip_scoreboard_enable", "1", .description = "Enable Score Board"), g_pCvar[ScoreBoardEnable]);
 	
 	bind_pcvar_num(create_cvar("vip_info_menu_enable", "1", .description = "Enable Info Menu"), g_pCvar[InfoMenuEnable]);
 	
@@ -81,6 +88,7 @@ public plugin_init() {
 	
 	RegisterHam(Ham_TakeDamage, "player", "onPlayerTakeDamage", true);
 	RegisterHam(Ham_Killed, "player", "onPlayerKill" , true);
+	RegisterHam(Ham_Spawn, "player", "OnPlayerSpawn", true);
 	RegisterHam(Ham_Player_Jump, "player", "onPlayerJump");
 }
 
@@ -107,7 +115,7 @@ show_vip_menu(id) {
 	formatex(szOption, charsmax(szOption), "Damage Boost: \y[%s]", g_pCvar[DamageAdjustEnable] ? "Enabled" : "Disabled");
 	menu_additem(menu, szOption, "2");
 	
-	formatex(szOption, charsmax(szOption), "Scoreboard VIP Icon: \y[%s]", g_pCvar[ScoreBoard] ? "Enabled" : "Disabled");
+	formatex(szOption, charsmax(szOption), "Scoreboard VIP Icon: \y[%s]", g_pCvar[ScoreBoardEnable] ? "Enabled" : "Disabled");
 	menu_additem(menu, szOption, "3");
 	
 	formatex(szOption, charsmax(szOption), "Reward System: \y[%s]", g_pCvar[RewardsEnable] ? "Enabled" : "Disabled");
@@ -115,6 +123,9 @@ show_vip_menu(id) {
 	
 	formatex(szOption, charsmax(szOption), "Online VIP Check: \y[%s]", g_pCvar[OnlineCheckEnable] ? "Enabled" : "Disabled");
 	menu_additem(menu, szOption, "5");
+	
+	formatex(szOption, charsmax(szOption), "Respawn Privilages: \y[%s]", g_pCvar[PrivilageEnable] ? "Enabled" : "Disabled");
+	menu_additem(menu, szOption, "6");
 	
 	menu_setprop(menu, MPROP_EXIT, MEXIT_ALL);
 	menu_display(id, menu, 0);
@@ -128,12 +139,13 @@ public vip_menu_handler(id, menu, item) {
 	
 	switch (item) {
 		case 0: g_pCvar[MedicEnable] = g_pCvar[MedicEnable] ? false : true;
-			case 1: g_pCvar[MultiJumpEnable] = g_pCvar[MultiJumpEnable] ? false : true;
-			case 2: g_pCvar[DamageAdjustEnable] = g_pCvar[DamageAdjustEnable] ? false : true;
-			case 3: g_pCvar[ScoreBoard] = g_pCvar[ScoreBoard] ? false : true;
-			case 4: g_pCvar[RewardsEnable] = g_pCvar[RewardsEnable]? false : true;
-			case 5: g_pCvar[OnlineCheckEnable] = g_pCvar[OnlineCheckEnable] ? false : true;
-		}
+		case 1: g_pCvar[MultiJumpEnable] = g_pCvar[MultiJumpEnable] ? false : true;
+		case 2: g_pCvar[DamageAdjustEnable] = g_pCvar[DamageAdjustEnable] ? false : true;
+		case 3: g_pCvar[ScoreBoardEnable] = g_pCvar[ScoreBoardEnable] ? false : true;
+		case 4: g_pCvar[RewardsEnable] = g_pCvar[RewardsEnable]? false : true;
+		case 5: g_pCvar[OnlineCheckEnable] = g_pCvar[OnlineCheckEnable] ? false : true;
+		case 6: g_pCvar[PrivilageEnable] = g_pCvar[PrivilageEnable] ? false : true;
+	}
 	
 	show_vip_menu(id);
 	return PLUGIN_HANDLED;
@@ -163,8 +175,9 @@ public onMedicUsed(id) {
 	static Float:lastUsed[MAX_PLAYERS + 1];
 	new Float:currentTime = get_gametime(), iHealth = pev(id, pev_health), iMoney = fm_get_user_money(id);
 	
-	if (currentTime - lastUsed[id] < g_pCvar[MedicCooldown]) {
-		client_print_color(id, print_team_default, "^4%s^1 Medic is on cooldown.", g_pCvar[ChatPrefix]);
+	if (currentTime - lastUsed[id] < g_pCvar[MedicCooldown])
+	{
+		client_print_color(id, print_team_default, "^4%s^1 You must wait %.1f seconds before using Medic again.",g_pCvar[ChatPrefix],(g_pCvar[MedicCooldown] - (currentTime - lastUsed[id])));
 		return;
 	}
 	
@@ -183,16 +196,26 @@ public onMedicUsed(id) {
 	fm_set_user_money(id, iMoney - g_pCvar[MedicPrice]);
 	set_pev(id, pev_health, iHealth + g_pCvar[MedicAmount]);
 	lastUsed[id] = currentTime;
-	client_print(id, print_chat, "You have been healed by %d HP.", g_pCvar[MedicAmount]);
+	client_print_color(id, print_team_default, "^4%s^1 You have been healed by^4 %d^1 HP.", g_pCvar[ChatPrefix], g_pCvar[MedicAmount]);
 }
 
 public onMessageScoreAttrib(iMsgId, iDest, iReceiver) {
-	if(g_pCvar[ScoreBoard]) {
+	if(g_pCvar[ScoreBoardEnable]) {
 		if(get_user_flags(get_msg_arg_int(SCOREATTRIB_ARG_PLAYERID)) & ADMIN_VIP) {
 			set_msg_arg_int( SCOREATTRIB_ARG_FLAGS, ARG_BYTE, SCOREATTRIB_FLAG_VIP );
 		}
 	}
 }
+
+public OnPlayerSpawn(id){
+	if(!(get_user_flags(id) && ADMIN_VIP) || is_user_bot(id) || !is_user_alive(id))
+		return;
+	
+	set_pev(id, pev_health, pev(id, pev_health) + g_pCvar[PrivilageHealth]);
+	set_pev(id, pev_armorvalue, pev(id, pev_armorvalue) + g_pCvar[PrivilageArmor]);
+	client_print_color(id, print_team_default, "^4%s^1 You have been recived^4 +%d^1 HP and^4 +%d^1 Armor.", g_pCvar[ChatPrefix], g_pCvar[PrivilageHealth], g_pCvar[PrivilageArmor]);
+}
+
 
 public onPlayerJump(id) {
 	if (!is_user_alive(id) || !(get_user_flags(id) & ADMIN_VIP))
@@ -238,7 +261,7 @@ public onPlayerTakeDamage(victim, inflictor, attacker, Float:damage, damageType)
 }
 
 public onPlayerKill(victim, attacker, shouldgib) {
-	if(attacker == victim || !(get_user_flags(attacker) & ADMIN_VIP)) return HAM_IGNORED;
+	if(attacker == victim || !(get_user_flags(attacker) & ADMIN_VIP) || !is_user_connected(attacker)) return HAM_IGNORED;
 	
 	fm_set_user_money(attacker, fm_get_user_money(attacker) + g_pCvar[ExtraMoney]);
 	client_print_color(attacker, print_team_default, "^4%s^1 You received extra rewards for your kill.", g_pCvar[ChatPrefix]);
