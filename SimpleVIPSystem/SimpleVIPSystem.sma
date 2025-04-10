@@ -209,7 +209,7 @@ public onMessageScoreAttrib(iMsgId, iDest, iReceiver) {
 }
 
 public OnPlayerSpawn(id){
-	if(!(get_user_flags(id) && ADMIN_VIP) || is_user_bot(id) || !is_user_alive(id))
+	if(!g_pCvar[PrivilageEnable] || !(get_user_flags(id) && ADMIN_VIP) || is_user_bot(id) || !is_user_alive(id))
 		return;
 	
 	set_pev(id, pev_health, pev(id, pev_health) + float(g_pCvar[PrivilageHealth]));
@@ -219,7 +219,7 @@ public OnPlayerSpawn(id){
 
 
 public onPlayerJump(id) {
-	if (!is_user_alive(id) || !(get_user_flags(id) & ADMIN_VIP))
+	if (!g_pCvar[MultiJumpEnable] || !is_user_alive(id) || !(get_user_flags(id) & ADMIN_VIP))
 		return HAM_IGNORED;
 	
 	new iFlags = pev(id, pev_flags)
@@ -236,17 +236,14 @@ public onPlayerJump(id) {
 		return HAM_IGNORED;
 	}
 	
-	if (g_pCvar[MultiJumpEnable] || bGiveMultiJump[id] )
+	if (bGiveMultiJump[id] && ++iJumps[id] <= g_pCvar[MultiJumpCount])
 	{
-		if (++iJumps[id] <= g_pCvar[MultiJumpCount])
-		{
-			new Float:fVelocity[3]
-			pev(id, pev_velocity, fVelocity)
-			fVelocity[2] = 268.328157;
-			set_pev(id, pev_velocity, fVelocity)
-			
-			return HAM_IGNORED;
-		}
+		new Float:fVelocity[3]
+		pev(id, pev_velocity, fVelocity)
+		fVelocity[2] = 268.328157;
+		set_pev(id, pev_velocity, fVelocity)
+		
+		return HAM_IGNORED;
 	}
 	
 	return HAM_IGNORED;
@@ -262,7 +259,7 @@ public onPlayerTakeDamage(victim, inflictor, attacker, Float:damage, damageType)
 }
 
 public onPlayerKill(victim, attacker, shouldgib) {
-	if(attacker == victim || !(get_user_flags(attacker) & ADMIN_VIP) || !is_user_connected(attacker)) return HAM_IGNORED;
+	if(!g_pCvar[RewardsEnable] || attacker == victim || !(get_user_flags(attacker) & ADMIN_VIP) || !is_user_connected(attacker)) return HAM_IGNORED;
 	
 	fm_set_user_money(attacker, fm_get_user_money(attacker) + g_pCvar[ExtraMoney]);
 	client_print_color(attacker, print_team_default, "^4%s^1 You received extra rewards for your kill.", g_pCvar[ChatPrefix]);
@@ -273,7 +270,7 @@ public onPlayerKill(victim, attacker, shouldgib) {
 
 public client_connect(id) {
 	if (g_pCvar[OnlineCheckEnable] && (get_user_flags(id) & ADMIN_VIP)) {
-		client_print_color(id, print_team_default, "^4%s^1 VIP^4 %s^1 has joined the", g_pCvar[ChatPrefix]);
+		client_print_color(id, print_team_default, "^4%s^1 VIP^4 %s^1 has joined the game.", g_pCvar[ChatPrefix]);
 	}
 }
 
