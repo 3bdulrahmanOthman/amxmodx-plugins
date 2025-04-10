@@ -30,7 +30,6 @@ vip_rewards_enable 1
 ```
 
 Full list of CVARs:
-```ini
 | CVAR                       | Description                   | Default        |
 | -------------------------- | ----------------------------- | -------------- |
 | `vip_chat_prefix`          | Chat prefix for VIP messages  | `[VIP System]` |
@@ -51,7 +50,7 @@ Full list of CVARs:
 | `vip_rewards_money`        | Bonus money per kill          | `300`          |
 | `vip_scoreboard_enable`    | Show VIP icon on scoreboard   | `1`            |
 | `vip_info_menu_enable`     | Enable info menu              | `1`            |
-```
+
 ## 🕹 Commands
 
 | Command        | Access    | Description                   |
