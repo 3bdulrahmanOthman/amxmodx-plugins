@@ -85,6 +85,7 @@ public plugin_init() {
 	
 	register_clcmd("say /vipmenu", "@VIPControler");
 	register_clcmd("say /vips", "@ShowVIPList");
+	register_clcmd("say /vipmedic", "onMedicUsed");
 	
 	RegisterHam(Ham_TakeDamage, "player", "onPlayerTakeDamage", true);
 	RegisterHam(Ham_Killed, "player", "onPlayerKill" , true);
@@ -194,7 +195,7 @@ public onMedicUsed(id) {
 	}
 	
 	fm_set_user_money(id, iMoney - g_pCvar[MedicPrice]);
-	set_pev(id, pev_health, iHealth + g_pCvar[MedicAmount]);
+	set_pev(id, pev_health, iHealth + float(g_pCvar[MedicAmount]));
 	lastUsed[id] = currentTime;
 	client_print_color(id, print_team_default, "^4%s^1 You have been healed by^4 %d^1 HP.", g_pCvar[ChatPrefix], g_pCvar[MedicAmount]);
 }
@@ -211,8 +212,8 @@ public OnPlayerSpawn(id){
 	if(!(get_user_flags(id) && ADMIN_VIP) || is_user_bot(id) || !is_user_alive(id))
 		return;
 	
-	set_pev(id, pev_health, pev(id, pev_health) + g_pCvar[PrivilageHealth]);
-	set_pev(id, pev_armorvalue, pev(id, pev_armorvalue) + g_pCvar[PrivilageArmor]);
+	set_pev(id, pev_health, pev(id, pev_health) + float(g_pCvar[PrivilageHealth]));
+	set_pev(id, pev_armorvalue, pev(id, pev_armorvalue) + float(g_pCvar[PrivilageArmor]));
 	client_print_color(id, print_team_default, "^4%s^1 You have been recived^4 +%d^1 HP and^4 +%d^1 Armor.", g_pCvar[ChatPrefix], g_pCvar[PrivilageHealth], g_pCvar[PrivilageArmor]);
 }
 
